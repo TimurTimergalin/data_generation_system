@@ -175,7 +175,7 @@ class AgentState:
     current_chapter: int = 1
     current_stage: int = 1
     max_chapter: int = 1
-    max_stage: int = 1
+    max_stage: int = 0
     total_stages_cleared: int = 0
     tutorial_completed: bool = False
     tutorial_step: int = 0
