@@ -143,7 +143,7 @@ if __name__ == '__main__':
     perform_tests(metrics, sample_names, samples, 0.05, 0.2)
     print("================================================")
 
-    metrics = ['Starter Pack purchase conversion']
+    metrics = ['Starter Pack purchase conversion', 'ARPPU']
     sample_names = ['control', 'lower', 'higher']
     samples = [
         [
