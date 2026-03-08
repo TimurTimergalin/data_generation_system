@@ -92,7 +92,7 @@ if __name__ == '__main__':
         [
             Measure(np.asarray(onboarding_length_retention(group, 1)), 'mean'),
             Measure(np.asarray(onboarding_length_retention(group, 7)), 'mean'),
-            Measure(np.asarray(onboarding_length_tutorial_completion_rate(group)), 'mean'),
+            Measure(np.asarray(onboarding_length_tutorial_completion_rate(group)), 'conversion'),
             Measure(np.asarray(onboarding_length_d1_sessions(group)), 'mean'),
             Measure(np.asarray(onboarding_length_tutorial_duration(group)), 'mean')
         ]

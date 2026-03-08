@@ -4,6 +4,7 @@ from typing import Literal
 import numpy as np
 from prettytable import PrettyTable
 from scipy import stats
+from types import SimpleNamespace
 
 
 def format_confidence_interval(interval):
@@ -33,10 +34,86 @@ def perform_ttest(ctrl, tst, alpha, beta, mode="sum"):
         ttest_res.confidence_interval(1 - alpha))
 
 
+def perform_ztest(control, test, alpha, beta):
+    control = np.asarray(control, dtype=int)
+    test = np.asarray(test, dtype=int)
+
+    n_control = len(control)
+    n_test = len(test)
+    x_control = np.sum(control)
+    x_test = np.sum(test)
+
+    p_control = x_control / n_control
+    p_test = x_test / n_test
+
+    abs_diff = p_test - p_control
+
+    if p_control == 0:
+        rel_diff = np.inf if abs_diff > 0 else 0.0
+    else:
+        rel_diff = (abs_diff / p_control) * 100.0
+
+    p_pool = (x_control + x_test) / (n_control + n_test)
+    if p_pool in (0, 1):
+        z = 0.0
+    else:
+        se_pool = np.sqrt(p_pool * (1 - p_pool) * (1 / n_control + 1 / n_test))
+        z = abs_diff / se_pool
+    p_value = 2 * (1 - stats.norm.cdf(np.abs(z)))
+
+    if p_control in (0, 1):
+        var_control = 0.0
+    else:
+        var_control = p_control * (1 - p_control) / n_control
+
+    if p_test in (0, 1):
+        var_test = 0.0
+    else:
+        var_test = p_test * (1 - p_test) / n_test
+
+    se_unpooled = np.sqrt(var_control + var_test)
+    z_crit = stats.norm.ppf(1 - alpha / 2)
+    margin = z_crit * se_unpooled
+    ci_lower = abs_diff - margin
+    ci_upper = abs_diff + margin
+    ci = SimpleNamespace(low=ci_lower, high=ci_upper)
+
+    z_alpha = stats.norm.ppf(1 - alpha / 2)
+    z_beta = stats.norm.ppf(1 - beta)
+
+    def mde_equation(p2):
+        if p2 <= p_control:
+            return -np.inf
+        se_alt = np.sqrt(p_control * (1 - p_control) / n_control +
+                         p2 * (1 - p2) / n_test)
+        required = (z_alpha + z_beta) * se_alt
+        return (p2 - p_control) - required
+
+    p2_low = p_control + 1e-6
+    p2_high = min(p_control + 0.5, 0.999)
+
+    if mde_equation(p2_high) < 0:
+        abs_mde = p2_high - p_control
+    else:
+        try:
+            p2_solution = stats.brentq(mde_equation, p2_low, p2_high)
+            abs_mde = p2_solution - p_control
+        except ValueError:
+            se_approx = np.sqrt(2 * p_control * (1 - p_control) / min(n_control, n_test))
+            abs_mde = (z_alpha + z_beta) * se_approx
+
+    if p_control == 0:
+        rel_mde = np.inf if abs_mde > 0 else 0.0
+    else:
+        rel_mde = (abs_mde / p_control) * 100.0
+
+    return abs_diff, rel_diff, p_value, abs_mde, rel_mde, format_confidence_interval(ci)
+
+
 @dataclass
 class Measure:
     data: np.ndarray
-    mode: Literal["sum", "mean"]
+    mode: Literal["sum", "mean", "conversion"]
 
 
 def make_column(title: str | None, sub_columns, values):
@@ -84,7 +161,10 @@ def perform_tests(metric_names: list[str], sample_names: list[str], samples: lis
 
         rows = []
         for ctrl_measure, tst_measure in zip(ctrl_measures, measures):
-            row = perform_ttest(ctrl_measure.data, tst_measure.data, alpha, beta, ctrl_measure.mode)
+            if ctrl_measure == 'conversion':
+                row = perform_ztest(ctrl_measure.data, tst_measure.data, alpha, beta)
+            else:
+                row = perform_ttest(ctrl_measure.data, tst_measure.data, alpha, beta, ctrl_measure.mode)
             row = [get_value(tst_measure.data, tst_measure.mode), *row]
             for j in range(len(row) - 1):
                 row[j] = f"{row[j]:.2f}"
