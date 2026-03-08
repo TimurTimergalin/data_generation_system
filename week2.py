@@ -21,15 +21,18 @@ def query(func):
 def onboarding_length_retention(group, days):
     return f"""
 WITH
-data as (
-    SELECT
-        uniqExact(user_id) AS cohort_size,
-        uniqExactIf(user_id, days_since_install >= {days}) AS returned
+returned AS (
+    SELECT DISTINCT user_id
+    FROM game_analytics.events
+    WHERE days_since_install >= {days} AND JSONExtractString(ab_tests, 'onboarding_length') = '{group}'
+),
+all_users AS (
+    SELECT DISTINCT user_id
     FROM game_analytics.events
     WHERE JSONExtractString(ab_tests, 'onboarding_length') = '{group}'
-    GROUP BY cohort_date
 )
-SELECT returned / cohort_size AS retention FROM data
+SELECT if(user_id in returned, 1, 0) FROM all_users
+
 """.strip()
 
 
@@ -166,11 +169,11 @@ GROUP BY user_id
 if __name__ == '__main__':
     metrics = ["D1 retention", "D7 retention", "Tutorial completion rate", "Sessions on day 1", "Tutorial length"]
 
-    sample_names = ["control", "extended"]
+    sample_names = ["control", "extended", ""]
     samples = [
         [
-            Measure(onboarding_length_retention(group, 1), 'mean'),
-            Measure(onboarding_length_retention(group, 7), 'mean'),
+            Measure(onboarding_length_retention(group, 1), 'conversion'),
+            Measure(onboarding_length_retention(group, 7), 'conversion'),
             Measure(onboarding_length_tutorial_completion_rate(group), 'conversion'),
             Measure(onboarding_length_d1_sessions(group), 'mean'),
             Measure(onboarding_length_tutorial_duration(group), 'mean')
