@@ -796,13 +796,13 @@ class Simulator:
             if is_first:
                 if stage < self.config.stages_per_chapter:
                     agent.current_stage = stage + 1
-                    agent.max_stage = stage  # last cleared stage
+                    agent.max_stage = stage + 1
                 else:
                     if chapter < self.config.total_chapters:
                         agent.current_chapter = chapter + 1
                         agent.current_stage = 1
                         agent.max_chapter = chapter + 1
-                        agent.max_stage = 0  # no stages cleared in new chapter yet
+                        agent.max_stage = 1
 
             agent.consecutive_losses = 0
 

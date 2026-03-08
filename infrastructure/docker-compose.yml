@@ -20,14 +20,11 @@ services:
       nofile:
         soft: 262144
         hard: 262144
-    mem_limit: 8g
-    memswap_limit: 8g
     healthcheck:
       test: ["CMD", "clickhouse-client", "--query", "SELECT 1"]
       interval: 10s
       timeout: 5s
       retries: 5
-    restart: unless-stopped
 
   # Инициализация ClickHouse (создание базы и таблиц)
   clickhouse-init:
@@ -66,8 +63,6 @@ services:
         condition: service_healthy
       superset-init:
         condition: service_completed_successfully
-    mem_limit: 4g
-    restart: unless-stopped
     command: >
       sh -c "superset run -h 0.0.0.0 -p 8088 --with-threads --reload"
 
@@ -101,8 +96,6 @@ services:
       - "6379:6379"
     volumes:
       - redis_data:/data
-    mem_limit: 512m
-    restart: unless-stopped
 
 volumes:
   clickhouse_data:
