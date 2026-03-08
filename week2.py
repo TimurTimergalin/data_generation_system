@@ -126,6 +126,31 @@ GROUP BY user_id
 """.strip()
 
 
+@query
+def starter_pack_price_arpu(group):
+    return f"""
+WITH
+revenue AS (
+    SELECT
+        user_id,
+        sum(JSONExtractFloat(event_properties, 'price_usd')) as revenue
+    FROM game_analytics.events
+    WHERE JSONExtractString(ab_tests, 'starter_pack_price') = '{group}' AND
+        event_name = 'iap_purchase'
+    GROUP BY user_id
+),
+all_users AS (
+    SELECT DISTINCT user_id
+    FROM game_analytics.events
+    WHERE JSONExtractString(ab_tests, 'starter_pack_price') = '{group}'
+)
+SELECT
+    if(r.revenue = NULL, 0.0, r.revenue)
+FROM revenue r
+RIGHT JOIN all_users a ON r.user_id = a.user_id
+"""
+
+
 if __name__ == '__main__':
     metrics = ["D1 retention", "D7 retention", "Tutorial completion rate", "Sessions on day 1", "Tutorial length"]
 
@@ -143,12 +168,13 @@ if __name__ == '__main__':
     perform_tests(metrics, sample_names, samples, 0.05, 0.2)
     print("================================================")
 
-    metrics = ['Starter Pack purchase conversion', 'ARPPU']
+    metrics = ['Starter Pack purchase conversion', 'ARPPU', 'ARPU']
     sample_names = ['control', 'lower', 'higher']
     samples = [
         [
             Measure(starter_pack_price_purchase_conversion(group), 'conversion'),
-            Measure(starter_pack_price_arppu(group), 'mean')
+            Measure(starter_pack_price_arppu(group), 'mean'),
+            Measure(starter_pack_price_arpu(group), 'mean')
         ]
         for group in sample_names
     ]
