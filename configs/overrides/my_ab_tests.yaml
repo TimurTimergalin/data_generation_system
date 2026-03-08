@@ -1,0 +1,17 @@
+ab_tests:
+  test_1:
+    enabled: true
+    variants: ["control", "treatment"]
+    weights: [0.50, 0.50]
+    effects:
+      control:
+      treatment:
+        d1_retention_mult: 1.08
+  test_2:
+    enabled: true
+    variants: ["control", "treatment"]
+    weights: [0.50, 0.50]
+    effects:
+      control:
+      treatment:
+        d7_retention_mult: 1.15
