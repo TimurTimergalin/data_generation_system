@@ -3,13 +3,23 @@ from scipy.stats import chisquare
 from itertools import chain
 from ab_exec.ab_results import *
 import numpy as np
+from functools import wraps
 
 
 client = create_client(host='5.129.200.238', username='team_11', password='team_pass_11')
 
 
+def query(func):
+    @wraps(func)
+    def new_func(*args, **kwargs):
+        res = client.query(func(*args, **kwargs))
+        return list(chain.from_iterable(res.result_rows))
+    return new_func
+
+
+@query
 def onboarding_length_retention(group, days):
-    query = f"""
+    return f"""
 WITH
 data as (
     SELECT
@@ -21,12 +31,11 @@ data as (
 )
 SELECT returned / cohort_size AS retention FROM data
 """.strip()
-    res = client.query(query)
-    return list(chain.from_iterable(res.result_rows))
 
 
+@query
 def onboarding_length_tutorial_completion_rate(group):
-    query = f"""
+    return f"""
 WITH
 completed AS(
     SELECT DISTINCT user_id
@@ -36,18 +45,21 @@ completed AS(
         event_name = 'tutorial_step' AND 
         NOT JSONExtractBool(event_properties, 'is_skipped') AND
         JSONExtractString(event_properties, 'step_id') = 'tut_complete'
+),
+all_users AS (
+    SELECT DISTINCT user_id
+    FROM game_analytics.events
+    WHERE JSONExtractString(ab_tests, 'onboarding_length') = '{group}'
 )
 SELECT
     if(user_id IN completed, 1, 0)
-FROM game_analytics.events
-WHERE JSONExtractString(ab_tests, 'onboarding_length') = '{group}'
+FROM all_users
 """.strip()
-    res = client.query(query)
-    return list(chain.from_iterable(res.result_rows))
 
 
+@query
 def onboarding_length_d1_sessions(group):
-    query = f"""
+    return f"""
 SELECT count(*)
 FROM game_analytics.events
 WHERE JSONExtractString(ab_tests, 'onboarding_length') = '{group}' AND
@@ -55,12 +67,11 @@ WHERE JSONExtractString(ab_tests, 'onboarding_length') = '{group}' AND
       days_since_install = 0
 GROUP BY user_id
 """.strip()
-    res = client.query(query)
-    return list(chain.from_iterable(res.result_rows))
 
 
+@query
 def onboarding_length_tutorial_duration(group):
-    query = f"""
+    return f"""
 WITH
 target_users AS (
     SELECT DISTINCT
@@ -80,8 +91,27 @@ WHERE e.event_name = 'tutorial_step' AND JSONExtractString(event_properties, 'st
 GROUP BY e.user_id
 
 """.strip()
-    res = client.query(query)
-    return list(chain.from_iterable(res.result_rows))
+
+
+@query
+def starter_pack_price_purchase_conversion(group):
+    return f"""
+WITH
+purchasing_users AS (
+    SELECT DISTINCT user_id
+    FROM game_analytics.events
+    WHERE event_name = 'iap_purchase'
+      AND JSONExtractString(event_properties, 'product_name') = 'Starter Pack'
+      AND JSONExtractString(ab_tests, 'starter_pack_price') = '{group}'
+),
+all_users AS (
+    SELECT DISTINCT user_id
+    FROM game_analytics.events
+    WHERE JSONExtractString(ab_tests, 'starter_pack_price') = '{group}'
+)
+SELECT if(user_id in purchasing_users, 1, 0)
+FROM all_users
+""".strip()
 
 
 if __name__ == '__main__':
@@ -99,3 +129,13 @@ if __name__ == '__main__':
         for group in sample_names
     ]
     perform_tests(metrics, sample_names, samples, 0.05, 0.2)
+    print("================================================")
+
+    metrics = ['Starter Pack purchase conversion']
+    sample_names = ['control', 'lower', 'higher']
+    samples = [
+        [
+            Measure(np.asarray(starter_pack_price_purchase_conversion(group)), 'conversion')
+        ]
+        for group in sample_names
+    ]
