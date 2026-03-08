@@ -148,7 +148,19 @@ SELECT
     if(r.revenue = NULL, 0.0, r.revenue)
 FROM revenue r
 RIGHT JOIN all_users a ON r.user_id = a.user_id
-"""
+""".strip()
+
+
+@query
+def starter_pack_price_multiple_purchase_rate(group):
+    return f"""
+SELECT if(count(event_name) > 1, 1, 0) AS purchases
+FROM game_analytics.events
+WHERE event_name = 'iap_purchase'
+  AND JSONExtractString(event_properties, 'product_name') = 'Starter Pack'
+  AND JSONExtractString(ab_tests, 'starter_pack_price') = '{group}'
+GROUP BY user_id 
+""".strip()
 
 
 if __name__ == '__main__':
@@ -168,13 +180,14 @@ if __name__ == '__main__':
     perform_tests(metrics, sample_names, samples, 0.05, 0.2)
     print("================================================")
 
-    metrics = ['Starter Pack purchase conversion', 'ARPPU', 'ARPU']
+    metrics = ['Starter Pack purchase conversion', 'ARPPU', 'ARPU', 'Multiple Purchase Rate']
     sample_names = ['control', 'lower', 'higher']
     samples = [
         [
             Measure(starter_pack_price_purchase_conversion(group), 'conversion'),
             Measure(starter_pack_price_arppu(group), 'mean'),
-            Measure(starter_pack_price_arpu(group), 'mean')
+            Measure(starter_pack_price_arpu(group), 'mean'),
+            Measure(starter_pack_price_multiple_purchase_rate(group), 'conversion')
         ]
         for group in sample_names
     ]
