@@ -141,6 +141,8 @@ if __name__ == '__main__':
         for group in sample_names
     ]
     perform_tests(metrics, sample_names, samples, 0.05, 0.2)
+
+    perform_tests(metrics, sample_names, samples, 0.05, 0.2)
     print("================================================")
 
     metrics = ['Starter Pack purchase conversion']

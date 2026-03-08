@@ -8,7 +8,7 @@ from types import SimpleNamespace
 
 
 def format_confidence_interval(interval):
-    return f"({interval.low:.2f};{interval.high:.2f})"
+    return f"({interval.low:.4f};{interval.high:.4f})"
 
 
 def get_value(sample, mode):
@@ -153,7 +153,7 @@ def perform_tests(metric_names: list[str], sample_names: list[str], samples: lis
     metrics_column = make_column(None, ["Metrics"], [metric_names])
     ctrl_measures = samples[0]
     ctrl_column = make_column(sample_names[0], ["Value"],
-                              [[f"{get_value(measure.data, measure.mode):.2f}" for measure in ctrl_measures]])
+                              [[f"{get_value(measure.data, measure.mode):.4f}" for measure in ctrl_measures]])
     tst_columns = []
     for i, (sample_name, measures) in enumerate(zip(sample_names, samples)):
         if i == 0:
@@ -167,7 +167,7 @@ def perform_tests(metric_names: list[str], sample_names: list[str], samples: lis
                 row = perform_ttest(ctrl_measure.data, tst_measure.data, alpha, beta, ctrl_measure.mode)
             row = [get_value(tst_measure.data, tst_measure.mode), *row]
             for j in range(len(row) - 1):
-                row[j] = f"{row[j]:.2f}"
+                row[j] = f"{row[j]:.4f}"
             rows.append(row)
         columns = list(zip(*rows))
         sub_columns = ["Value", "\u0394", "\u0394, %", "P-value", "MDE", "MDE, %", "Confidence Interval"]
