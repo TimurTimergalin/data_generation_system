@@ -20,18 +20,6 @@ ab_tests:
         treatment:
           price_usd: 0.49
           conversion_mult: 1.40
-    custom_generous_ads:
-      enabled: true
-      variants: [ "control", "treatment" ]
-      weights: [ 0.50, 0.50 ]
-      activation_condition: null
-      effects:
-        control: { }
-        treatment:
-          reward_gems: 100
-          ad_watch_mult: 1.30
-          sessions_mult: 1.15
-          iap_conversion_mult: 0.85
     custom_early_gacha_hype:
       enabled: true
       variants: [ "control", "treatment" ]
