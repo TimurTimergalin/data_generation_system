@@ -299,7 +299,9 @@ SELECT if(user_id in returned, 1, 0) FROM all_users
 """.strip()
 
 if __name__ == '__main__':
+    # Week 2
     # Part A
+    print("Week 2")
     print("Part A")
     print("Onboarding length")
     metrics = ["D1 retention", "D7 retention", "Tutorial completion rate", "Sessions on day 1", "Tutorial length"]
@@ -367,6 +369,26 @@ if __name__ == '__main__':
         [
             Measure(custom_early_gacha_hype_retention(group, 1), 'conversion'),
             Measure(custom_early_gacha_hype_retention(group, 7), 'conversion')
+        ]
+        for group in sample_names
+    ]
+    perform_tests(metrics, sample_names, samples, 0.05, 0.2)
+    print("================================================")
+
+    # Week 3
+    # Part A
+    print("Week 3")
+    print("Part A")
+    print("Onboarding length")
+    metrics = ["D1 retention", "D7 retention", "Tutorial completion rate", "Sessions on day 1", "Tutorial length"]
+    sample_names = ["control", "short", "extended"]
+    samples = [
+        [
+            Measure(onboarding_length_retention(group, 1), 'conversion'),
+            Measure(onboarding_length_retention(group, 7), 'conversion'),
+            Measure(onboarding_length_tutorial_completion_rate(group), 'conversion'),
+            Measure(onboarding_length_d1_sessions(group), 'mean'),
+            Measure(onboarding_length_tutorial_duration(group), 'mean')
         ]
         for group in sample_names
     ]
