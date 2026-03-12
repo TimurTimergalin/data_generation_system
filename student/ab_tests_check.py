@@ -362,6 +362,20 @@ if __name__ == '__main__':
     perform_tests(metrics, sample_names, samples, 0.05, 0.2)
     print("================================================")
 
+    print("Custom generous ads")
+    metrics = ["Ads", "Sessions", "Purchase conversion"]
+    sample_names = ['control', 'treatment']
+    samples = [
+        [
+            Measure(custom_generous_ads_ads(group), 'mean'),
+            Measure(custom_generous_ads_sessions(group), 'mean'),
+            Measure(custom_generous_ads_purchase_conversion(group), 'mean')
+        ]
+        for group in sample_names
+    ]
+    perform_tests(metrics, sample_names, samples, 0.05, 0.2)
+    print("================================================")
+
     print("Custom early gacha hype retention")
     metrics = ["D1 retention", "D7 retention"]
     sample_names = ['control', 'treatment']
