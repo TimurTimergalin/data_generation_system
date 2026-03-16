@@ -298,111 +298,214 @@ all_users AS (
 SELECT if(user_id in returned, 1, 0) FROM all_users
 """.strip()
 
+@query
+def ads_count(group, ab_test, table = "game_analytics.events", run_id = "baseline"):
+    return f"""
+WITH
+filtered_events AS (
+    SELECT *
+    FROM {table}
+    WHERE run_id = '{run_id}' AND JSONExtractString(ab_tests, '{ab_test}') = '{group}'
+)
+SELECT count(*)
+FROM filtered_events
+WHERE event_name = 'ad_completed'
+GROUP BY user_id
+""".strip()
+
+@query
+def ad_revenue(group, ab_test, table = "game_analytics.events", run_id = "baseline"):
+    return f"""
+WITH
+filtered_events AS (
+    SELECT *
+    FROM {table}
+    WHERE run_id = '{run_id}' AND JSONExtractString(ab_tests, '{ab_test}') = '{group}'
+)
+SELECT count(*) * 0.02
+FROM filtered_events
+WHERE event_name = 'ad_completed'
+GROUP BY user_id
+""".strip()
+
+@query
+def iap_revenue(group, ab_test, table = "game_analytics.events", run_id = "baseline"):
+    return f"""
+WITH
+filtered_events AS (
+    SELECT *
+    FROM {table}
+    WHERE run_id = '{run_id}' AND JSONExtractString(ab_tests, '{ab_test}') = '{group}'
+)
+SELECT MAX(total_spent_usd)
+FROM filtered_events
+WHERE event_name = 'session_end'
+GROUP BY user_id
+""".strip()
+
+
+
+@query
+def total_revenue(group, ab_test, table = "game_analytics.events", run_id = "baseline"):
+    return f"""
+WITH
+filtered_events AS (
+    SELECT *
+    FROM {table}
+    WHERE run_id = '{run_id}' AND JSONExtractString(ab_tests, '{ab_test}') = '{group}'
+),
+all_users AS (
+    SELECT DISTINCT user_id
+    FROM filtered_events
+),
+ad_revenue AS(
+    SELECT user_id, count(*) * 0.02 as revenue
+    FROM filtered_events
+    WHERE event_name = 'ad_completed'
+    GROUP BY user_id
+),
+iap_revenue AS(
+    SELECT user_id, MAX(total_spent_usd) as revenue
+    FROM filtered_events
+    WHERE event_name = 'session_end'
+    GROUP BY user_id
+)
+SELECT coalesce(ar.revenue, 0.0) + coalesce(ir.revenue, 0.0)
+FROM all_users a
+LEFT JOIN ad_revenue ar ON ar.user_id = a.user_id
+LEFT JOIN iap_revenue ir ON ir.user_id = a.user_id
+""".strip()
+
+@query
+def purchase_conversion(group, ab_test, table = "game_analytics.events", run_id = "baseline"):
+    return f"""
+WITH
+filtered_events AS (
+    SELECT *
+    FROM {table}
+    WHERE run_id = '{run_id}' AND JSONExtractString(ab_tests, '{ab_test}') = '{group}'
+),
+purchasing_users AS (
+    SELECT DISTINCT user_id
+    FROM filtered_events
+    WHERE event_name = 'iap_purchase'
+      AND JSONExtractString(event_properties, 'product_name') = 'Starter Pack'
+),
+all_users AS (
+    SELECT DISTINCT user_id
+    FROM filtered_events
+)
+SELECT if(user_id in purchasing_users, 1, 0)
+FROM all_users
+""".strip()
+
+
+
 if __name__ == '__main__':
-    # Week 2
-    # Part A
-    print("Week 2")
-    print("Part A")
-    print("Onboarding length")
-    metrics = ["D1 retention", "D7 retention", "Tutorial completion rate", "Sessions on day 1", "Tutorial length"]
-    sample_names = ["control", "short", "extended"]
-    samples = [
-        [
-            Measure(onboarding_length_retention(group, 1), 'conversion'),
-            Measure(onboarding_length_retention(group, 7), 'conversion'),
-            Measure(onboarding_length_tutorial_completion_rate(group), 'conversion'),
-            Measure(onboarding_length_d1_sessions(group), 'mean'),
-            Measure(onboarding_length_tutorial_duration(group), 'mean')
-        ]
-        for group in sample_names
-    ]
-    perform_tests(metrics, sample_names, samples, 0.05, 0.2)
-    print("================================================")
-
-    print("Starter pack price")
-    metrics = ['Purchase conversion', 'ARPPU', 'ARPU', 'Multiple Purchase Rate']
-    sample_names = ['control', 'lower', 'higher']
-    samples = [
-        [
-            Measure(starter_pack_price_purchase_conversion(group), 'conversion'),
-            Measure(starter_pack_price_arppu(group), 'mean'),
-            Measure(starter_pack_price_arpu(group), 'mean'),
-            Measure(starter_pack_price_multiple_purchase_rate(group), 'conversion')
-        ]
-        for group in sample_names
-    ]
-    perform_tests(metrics, sample_names, samples, 0.05, 0.2)
-    print("================================================")
-
-    # Part C
-    print("Part C")
-    print("Custom tutorial streamline")
-    metrics = ["D1 retention", "D7 retention"]
-    sample_names = ['control', 'treatment']
-    samples = [
-        [
-            Measure(custom_tutorial_streamline_retention(group, 1), 'conversion'),
-            Measure(custom_tutorial_streamline_retention(group, 7), 'conversion')
-        ]
-        for group in sample_names
-    ]
-    perform_tests(metrics, sample_names, samples, 0.05, 0.2)
-    print("================================================")
-
-    print("Custom aggressive starter")
-    metrics = ["Purchase conversion"]
-    sample_names = ['control', 'treatment']
-    samples = [
-        [
-            Measure(custom_aggressive_starter_purchase_conversion(group), 'conversion'),
-            Measure(custom_aggressive_starter_purchase_conversion(group), 'conversion')
-        ]
-        for group in sample_names
-    ]
-    perform_tests(metrics, sample_names, samples, 0.05, 0.2)
-    print("================================================")
-
-    print("Custom generous ads")
-    metrics = ["Ads", "Sessions", "Purchase conversion"]
-    sample_names = ['control', 'treatment']
-    samples = [
-        [
-            Measure(custom_generous_ads_ads(group), 'mean'),
-            Measure(custom_generous_ads_sessions(group), 'mean'),
-            Measure(custom_generous_ads_purchase_conversion(group), 'mean')
-        ]
-        for group in sample_names
-    ]
-    perform_tests(metrics, sample_names, samples, 0.05, 0.2)
-    print("================================================")
-
-    print("Custom early gacha hype retention")
-    metrics = ["D1 retention", "D7 retention"]
-    sample_names = ['control', 'treatment']
-    samples = [
-        [
-            Measure(custom_early_gacha_hype_retention(group, 1), 'conversion'),
-            Measure(custom_early_gacha_hype_retention(group, 7), 'conversion')
-        ]
-        for group in sample_names
-    ]
-    perform_tests(metrics, sample_names, samples, 0.05, 0.2)
-    print("================================================")
+    # # Week 2
+    # # Part A basic tests
+    # print("Week 2")
+    # print("Part A")
+    # print("Onboarding length")
+    # metrics = ["D1 retention", "D7 retention", "Tutorial completion rate", "Sessions on day 1", "Tutorial length"]
+    # sample_names = ["control", "short", "extended"]
+    # samples = [
+    #     [
+    #         Measure(onboarding_length_retention(group, 1), 'conversion'),
+    #         Measure(onboarding_length_retention(group, 7), 'conversion'),
+    #         Measure(onboarding_length_tutorial_completion_rate(group), 'conversion'),
+    #         Measure(onboarding_length_d1_sessions(group), 'mean'),
+    #         Measure(onboarding_length_tutorial_duration(group), 'mean')
+    #     ]
+    #     for group in sample_names
+    # ]
+    # perform_tests(metrics, sample_names, samples, 0.05, 0.2)
+    # print("================================================")
+    #
+    # print("Starter pack price")
+    # metrics = ['Purchase conversion', 'ARPPU', 'ARPU', 'Multiple Purchase Rate']
+    # sample_names = ['control', 'lower', 'higher']
+    # samples = [
+    #     [
+    #         Measure(starter_pack_price_purchase_conversion(group), 'conversion'),
+    #         Measure(starter_pack_price_arppu(group), 'mean'),
+    #         Measure(starter_pack_price_arpu(group), 'mean'),
+    #         Measure(starter_pack_price_multiple_purchase_rate(group), 'conversion')
+    #     ]
+    #     for group in sample_names
+    # ]
+    # perform_tests(metrics, sample_names, samples, 0.05, 0.2)
+    # print("================================================")
+    #
+    # # Part C custom tests
+    # print("Part C")
+    # print("Custom tutorial streamline")
+    # metrics = ["D1 retention", "D7 retention"]
+    # sample_names = ['control', 'treatment']
+    # samples = [
+    #     [
+    #         Measure(custom_tutorial_streamline_retention(group, 1), 'conversion'),
+    #         Measure(custom_tutorial_streamline_retention(group, 7), 'conversion')
+    #     ]
+    #     for group in sample_names
+    # ]
+    # perform_tests(metrics, sample_names, samples, 0.05, 0.2)
+    # print("================================================")
+    #
+    # print("Custom aggressive starter")
+    # metrics = ["Purchase conversion"]
+    # sample_names = ['control', 'treatment']
+    # samples = [
+    #     [
+    #         Measure(custom_aggressive_starter_purchase_conversion(group), 'conversion'),
+    #         Measure(custom_aggressive_starter_purchase_conversion(group), 'conversion')
+    #     ]
+    #     for group in sample_names
+    # ]
+    # perform_tests(metrics, sample_names, samples, 0.05, 0.2)
+    # print("================================================")
+    #
+    # print("Custom generous ads")
+    # metrics = ["Ads per user", "Sessions per user", "Purchase conversion"]
+    # sample_names = ['control', 'treatment']
+    # samples = [
+    #     [
+    #         Measure(custom_generous_ads_ads(group), 'mean'),
+    #         Measure(custom_generous_ads_sessions(group), 'mean'),
+    #         Measure(custom_generous_ads_purchase_conversion(group), 'conversion')
+    #     ]
+    #     for group in sample_names
+    # ]
+    # perform_tests(metrics, sample_names, samples, 0.05, 0.2)
+    # print("================================================")
+    #
+    # print("Custom early gacha hype retention")
+    # metrics = ["D1 retention", "D7 retention"]
+    # sample_names = ['control', 'treatment']
+    # samples = [
+    #     [
+    #         Measure(custom_early_gacha_hype_retention(group, 1), 'conversion'),
+    #         Measure(custom_early_gacha_hype_retention(group, 7), 'conversion')
+    #     ]
+    #     for group in sample_names
+    # ]
+    # perform_tests(metrics, sample_names, samples, 0.05, 0.2)
+    # print("================================================")
 
     # Week 3
-    # Part A
+    # Part A basic tests
     print("Week 3")
     print("Part A")
-    print("Onboarding length")
-    metrics = ["D1 retention", "D7 retention", "Tutorial completion rate", "Sessions on day 1", "Tutorial length"]
-    sample_names = ["control", "short", "extended"]
+    print("Ad reward amount")
+    metrics = ["Ads per user", "Ad revenue", "IAP revenue", "Total Revenue", "Purchase conversion"]
+    sample_names = ["control", "generous", "stingy"]
     samples = [
         [
-            Measure(onboarding_length_retention(group, 1), 'conversion'),
-            Measure(onboarding_length_retention(group, 7), 'conversion'),
-            Measure(onboarding_length_tutorial_completion_rate(group), 'conversion'),
-            Measure(onboarding_length_d1_sessions(group), 'mean'),
-            Measure(onboarding_length_tutorial_duration(group), 'mean')
+            Measure(ads_count(group, "ad_reward_amount"), 'mean'),
+            Measure(ad_revenue(group, "ad_reward_amount"), 'mean'),
+            Measure(iap_revenue(group, "ad_reward_amount"), 'mean'),
+            Measure(total_revenue(group, "ad_reward_amount"), 'mean'),
+            Measure(purchase_conversion(group, "ad_reward_amount"), 'conversion'),
         ]
         for group in sample_names
     ]
